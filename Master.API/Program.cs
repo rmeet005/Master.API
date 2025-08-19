@@ -1,6 +1,10 @@
+using Master.Application.Repository;
 using Master.Infrastructure.Data;
+using Master.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Master.Application.Repository;  
+using Master.Infrastructure.Services;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -47,6 +51,8 @@ builder.Services.AddCors(options =>
                   .AllowAnyMethod();
         });
 });
+
+builder.Services.AddScoped<ILoginService, LoginService>();
 
 var app = builder.Build();
 

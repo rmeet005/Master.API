@@ -1,11 +1,14 @@
-﻿using Master.Domain.DTO;
+﻿using Master.Application.Repository;
+using Master.Domain.DTO;
+using Master.Domain.Model;
 using Master.Infrastructure.Data;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Security.Claims;
 using System.Text;
 
@@ -16,46 +19,37 @@ namespace Master.API.Controllers
     public class LoginController : ControllerBase
     {
         ApplicationDbContext db;
+        ILoginService Service;
         IConfiguration configuration;
-        public LoginController(ApplicationDbContext db, IConfiguration configuration)
+        public LoginController(ApplicationDbContext db, IConfiguration configuration, ILoginService Service)
         {
             this.db = db;
             this.configuration = configuration;
+            this.Service = Service;
         }
 
-        [HttpPost]
-        [Route("Login")]
-        public IActionResult login([FromBody] LoginDto U)
+        
+        [HttpPost("login")]
+        public IActionResult Login([FromBody] LoginDto login)
         {
-            var user = db.Users.FirstOrDefault(x => x.UserName == U.UserName && x.PasswordHash == U.PasswordHash);
-            var role = db.UserRoles.Include(x=>x.Roles).ToList();
-            var rolename=role.FirstOrDefault(x => x.UserId == user.Uid)?.Roles?.RoleName;
-            if (user != null)
+            if (login == null || string.IsNullOrEmpty(login.UserName) || string.IsNullOrEmpty(login.PasswordHash))
             {
-                var claims = new[]
-                {
-                new Claim(JwtRegisteredClaimNames.Sub, configuration["Jwt:Subject"]),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim("UserName", user.UserName),
-                new Claim("Role",rolename)
-                };
-
-                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"]));
-                var signIn = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-                var token = new JwtSecurityToken(
-                    issuer: configuration["Jwt:Issuer"],
-                    audience: configuration["Jwt:Audience"],
-                    claims: claims,
-                    expires: DateTime.Now.AddMinutes(30),
-                    signingCredentials: signIn
-                );
-
-                var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-
-                return Ok(new { token = tokenString, username = user.UserName,role=rolename });
+                return BadRequest("Invalid login request.");
             }
-
-            return Unauthorized("Invalid credentials");
+            try
+            {
+                 var result=Service.Login(login);
+                return Ok(new
+                {
+                    username = result.UserName,
+                    role = result.RoleName,
+                    token = result.Token
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, $"Internal server error: {ex.Message}");
+            }
         }
     }
 }
