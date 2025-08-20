@@ -53,6 +53,8 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddScoped<ILoginService, LoginService>();
+builder.Services.AddScoped<IDashboardervice, DashboardService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
 
 var app = builder.Build();
 
